@@ -238,6 +238,20 @@ arguments. Any number of dashes can be used, it is not picky about -arg or
 --arg. You can use '-arg value' or '-arg=value', it will just work. Shortest
 unambiguous substring of any arg name can be used to specify the argument.
 
+=head1 WHY NOT GETOPT?
+
+The Getopt ecosystem is bloated. Type getopt into search.cpan.org and you will
+be given pages and pages of results. Clearly there is  lot of veriety, and it
+is not clear which one meets what need.
+
+The Getopt ecosystem is also very crufty. Getopt is an old module that uses
+many outdated practices, and an even more outdated interface. Unfortunately
+this has been carried forward into the new getopt modules, possibly for
+compatability/familiarity reasons.
+
+Declare::Args is a full on break from the Getopt ecosystem. Designed from
+scratch using modern practices and interface design.
+
 =head1 SYNOPSIS
 
 =head2 DECLARATIVE
