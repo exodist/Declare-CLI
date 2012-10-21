@@ -21,39 +21,34 @@ SYNOPSIS
         # Define a boolean arg
         arg with_x => ( bool => 1 );
 
-        # Define a boolean that is on unless specified
-        arg with_y => ( bool => 1, default => 1 );
-
-        # Define an arg that can have multiple values:
+        # Define a list
         arg items => ( list => 1 );
 
-        # Define an arg with a default (if arg is not specified default is used)
-        arg compiler => ( default => 'gcc' );
+        # Other Options
+        arg complex => (
+            alias       => $name_or_array_of_names,
+            default     => $val_or_sub,
+            check       => $bultin_regex_or_sub,
+            transform   => sub { my $arg = shift; ...; return $arg },
+            description => "This is a complex argument",
+        );
 
-        # Define an arg with validation (see 'check' section for more builtins)
-        arg my_number => ( check => 'number' );
+        # Get the (args => descriptions) hash, useful for a help() function
+        my $info = arg_info();
 
-        # Define more complex validation
-        arg phone => ( check => sub { my $val = shift; ... });
-        arg name  => ( check => qr/^[A-Z]\w+$/ );
+        #########################
+        # Now process some args #
+        #########################
 
-        # Convert the value
-        arg double => ( transform => sub { $_[0] * 2 } );
-
-        # Aliases can be added:
-        arg nameA  => ( alias => 'nameB' );
-        arg otherA => ( alias => [ 'otherA', 'otherB' ]);
-
-        ########################
-        # Now process some args:
         my ( $list, $args ) = parse_args( @ARGV );
 
-        # $list contains the items from @ARGV that are not specified args (or their values)
+        # $list contains the items from @ARGV that are not specified args (or their
+        # values)
         # $args is a hashref containing the args and their values.
 
     Command Line:
 
-        ./my_command.pl -simple simple_value -with_x --items "a,b, c" -phone="555-555-5555" --double=5
+        ./my_command.pl -simple simple_value -with_x --items "a,b, c"
 
     The shortest unambiguous string can be used for each parameter. For
     instance we only have one argument defined above that starts with 's',
@@ -62,7 +57,96 @@ SYNOPSIS
         ./my_command.pl -s simple_value
 
   OBJECT ORIENTED
+        require Declare::Args;
+
+        # Create
+        my $args = Declare::Args->new( %args );
+
+        # Add an arg
+        $args->arg( $name, %config );
+
+        # Get info
+        my $info = $args->info;
+
+        # Parse some args
+        my ( $list, $arg_hash ) = $args->parse( @ARGV );
+
+META OBJECT
+    When you import Declare::Args a meta-object is created in your package.
+    The meta object can be accessed via the ARGS_META() method/function.
+    This object is an instance of Declare::Args and can be manipulated just
+    like any Declare::Args object.
+
+EXPORTS
+    arg( $name, %config );
+    arg name => ( %config );
+        Define an argument
+
+    my $info = arg_info();
+        Get a ( name => description ) hashref for use in help output.
+
+    my ( $list, $args ) = parse_args( @ARGS );
+        Parse some arguments. $list contains the arguments leftovers (those
+        that do not start with '-'), $args is a hashref containing the
+        values of all the dashed args.
+
+METHODS
+    $class->new( %args );
+        Create a new instance.
+
+    my $class = $args->class;
+        If the object was created as a meta-object this will contain the
+        class to which it applies. When created directly this will always be
+        empty.
+
+    $args->arg( $name, %config );
+        Define an argument
+
+    my $info = $args->info();
+        Get a ( name => description ) hashref for use in help output.
+
+    my ( $list, $args ) = $args->parse( @ARGS );
+        Parse some arguments. $list contains the arguments leftovers (those
+        that do not start with '-'), $args is a hashref containing the
+        values of all the dashed args.
+
 ARGUMENT PROPERTIES
+    alias => $name
+    alias => [ $name1, $name2 ]
+        Set aliases for the argument.
+
+    list => $true_or_false
+        If true, the argument can be provided on the command line any number
+        of times, and comma seperated lists will be split for you.
+
+    bool => $true_or_false
+        If true, the argument does not require a value and turns the option
+        on or off. A value can be specified using the '--arg=VAL' format.
+        However '--arg val' will not treat 'val' as the argument value.
+
+    default => $scalar
+    default => sub { ... }
+        Set the default value. If the arg is not specified on the command
+        line this value will be used. If the value is not a simple scalar it
+        must be wrapped in a code block.
+
+    check => 'builtin'
+    check => qr/.../
+    check => sub { my $val = shift; ...; return $bool }
+        Used to validate argument values. Can be a coderef, a regexp, or one
+        of these bultins:
+
+            'number'    The value(s) must be numeric (only contains digit characters)
+            'file'      The value(s) must be a file (uses -f check)
+            'dir'       The value(s) must be a directory (-d check)
+
+    transform => sub { my $orig = shift; ...; return $new }
+        Function to transform the provided value into something else.
+        Applies to eahc item of a list when list is true.
+
+    description => $description_string
+        Used to describe an argument, useful for help() output.
+
 AUTHORS
     Chad Granum exodist7@gmail.com
 

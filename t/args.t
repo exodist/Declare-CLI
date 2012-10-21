@@ -41,6 +41,22 @@ tests simple => sub {
     like( $@, qr/unknown argument 'x'/, "Invalid Message" );
 };
 
+tests description => sub {
+    arg 'foo';
+    arg bar => ( description => 'a bar' );
+
+    my $info = arg_info();
+
+    is_deeply(
+        arg_info(),
+        {
+            bar => 'a bar',
+            foo => 'No Description',
+        },
+        "Got Info"
+    );
+};
+
 tests complex => sub {
     arg foo => ( bool => 1 );
     arg bar => ( list => 1 );
