@@ -46,7 +46,7 @@ tests complex => sub {
     arg bar => ( list => 1 );
     arg baz => ( alias => 'zag' );
     arg buz => ( bool => 1, default => 1 );
-    arg tin => ( default => 'fred' );
+    arg tin => ( default => 'fred', alias => ['tinn', 'tinnn'] );
 
     ok( !eval { arg boot => ( bool => 1, list => 1 ); 1 }, "invalid props" );
     like( $@, qr/arg properties 'list' and 'bool' are mutually exclusive/, "invalid prop message" );
@@ -77,7 +77,7 @@ tests complex => sub {
     ( $params, $flags ) = parse_args(
         '-f=0',
         '-buz',
-        '--tin',
+        '--tinnn',
         "din dan"
     );
 

@@ -1,0 +1,7 @@
+Build.PL
+lib/Declare/Args.pm
+MANIFEST			This list of files
+t/args.t
+README
+META.yml
+META.json
