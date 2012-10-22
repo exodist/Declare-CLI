@@ -2,7 +2,7 @@ package Declare::Args;
 use strict;
 use warnings;
 
-our $VERSION = "0.002";
+our $VERSION = "0.003";
 
 use Carp qw/croak/;
 
@@ -19,31 +19,35 @@ gen_default_export 'ARGS_META' => sub {
     return sub { $meta };
 };
 
-default_export arg        => sub { caller->ARGS_META->arg( @_ )   };
-default_export parse_args => sub { caller->ARGS_META->parse( @_ ) };
-default_export arg_info   => sub { caller->ARGS_META->info        };
+default_export arg      => sub { caller->ARGS_META->arg( @_ )   };
+default_export arg_info => sub { caller->ARGS_META->info        };
 
-sub class   { shift->{class}   }
-sub args    { shift->{args}    }
-sub default { shift->{default} }
+sub class { shift->{class}   }
+sub args  { shift->{args}    }
 
 sub new {
     my $class = shift;
     my ( %args ) = @_;
 
-    my $self = bless { args => {}, default => {} } => $class;
+    my $self = bless { args => {} } => $class;
     $self->arg( $_, $args{$_} ) for keys %args;
 
     return $self;
 }
 
 sub valid_arg_params {
-    return qr/^(alias|list|bool|default|check|transform|description)$/;
+    return qr/^(alias|run|description)$/;
 }
 
 sub arg {
     my $self = shift;
-    my ( $name, %config ) = @_;
+    my ( $name, %config );
+    if ( @_ == 2 ) {
+        ( $name, $config{run} ) = @_;
+    }
+    else {
+        ( $name, %config ) = @_;
+    }
 
     croak "arg '$name' already defined"
         if $self->args->{$name};
@@ -54,28 +58,20 @@ sub arg {
     }
 
     $config{name} = $name;
+    $config{run} ||= $name;
 
-    croak "'check' cannot be used with 'bool'"
-        if $config{bool} && $config{check};
+    croak "'run' parameter must be a codref, or sub name"
+        if ref $config{run}
+        && ref $config{run} ne 'CODE';
 
-    croak "'transform' cannot be used with 'bool'"
-        if $config{bool} && $config{transform};
-
-    croak "arg properties 'list' and 'bool' are mutually exclusive"
-        if $config{list} && $config{bool};
-
-    if (exists $config{default}) {
-        croak "References cannot be used in default, wrap them in a sub."
-            if ref $config{default} && ref $config{default} ne 'CODE';
-        $self->default->{$name} = $config{default};
+    unless ( ref $config{run} ) {
+        croak "Subroutine name is only supported on meta-object"
+            unless $self->class;
+        $config{run} = $self->class->can( $config{run} );
     }
 
-    if ( exists $config{check} ) {
-        my $ref = ref $config{check};
-        croak "'$config{check}' is not a valid value for 'check'"
-            if ($ref && $ref !~ m/^(CODE|Regexp)$/)
-            || (!$ref && $config{check} !~ m/^(file|dir|number)$/);
-    }
+    croak "arg '$name' requires a 'run' parameter"
+        unless $config{run};
 
     if ( exists $config{alias} ) {
         my $aliases = ref $config{alias} ?   $config{alias}
@@ -94,50 +90,6 @@ sub arg {
     $self->args->{$name} = \%config;
 }
 
-sub parse {
-    my $self = shift;
-    my @args = @_;
-
-    my $params = [];
-    my $flags = {};
-    my $no_flags = 0;
-
-    while ( my $arg = shift @args ) {
-        if ( $arg eq '--' ) {
-            $no_flags++;
-        }
-        elsif ( $arg =~ m/^-+([^-=]+)(?:=(.+))?$/ && !$no_flags ) {
-            my ( $key, $value ) = ( $1, $2 );
-
-            my $name = $self->_flag_name( $key );
-            my $values = $self->_flag_value(
-                $name,
-                $value,
-                \@args
-            );
-
-            if( $self->args->{$name}->{list} ) {
-                push @{$flags->{$name}} => @$values;
-            }
-            else {
-                $flags->{$name} = $values->[0];
-            }
-        }
-        else {
-            push @$params => $arg;
-        }
-    }
-
-    # Add defaults for args not provided
-    for my $arg ( keys %{ $self->default } ) {
-        next if exists $flags->{$arg};
-        my $val = $self->default->{$arg};
-        $flags->{$arg} = ref $val ? $val->() : $val;
-    }
-
-    return ( $params, $flags );
-}
-
 sub info {
     my $self = shift;
     return {
@@ -146,79 +98,11 @@ sub info {
     };
 }
 
-sub _flag_value {
+sub run {
     my $self = shift;
-    my ( $flag, $value, $args ) = @_;
+    my ( $args, $opts ) = @_;
 
-    my $spec = $self->args->{$flag};
-
-    if ( $spec->{bool} ) {
-        return [$value] if defined $value;
-        return [$spec->{default} ? 0 : 1];
-    }
-
-    my $val = defined $value ? $value : shift @$args;
-
-    my $out = $spec->{list} ? [ split /\s*,\s*/, $val ]
-                            : [ $val ];
-
-    $self->_validate( $flag, $spec, $out );
-
-    return $out unless $spec->{transform};
-    return [ map { $spec->{transform}->($_) } @$out ];
-}
-
-sub _validate {
-    my $self = shift;
-    my ( $flag, $spec, $value ) = @_;
-
-    my $check = $spec->{check};
-    return unless $check;
-    my $ref = ref $check || "";
-
-    my @bad;
-
-    if ( $ref eq 'Regexp' ) {
-        @bad = grep { $_ !~ $check } @$value;
-    }
-    elsif ( $ref eq 'CODE' ) {
-        @bad = grep { !$check->( $_ ) } @$value;
-    }
-    elsif ( $check eq 'file' ) {
-        @bad = grep { ! -f $_ } @$value;
-    }
-    elsif ( $check eq 'dir' ) {
-        @bad = grep { ! -d $_ } @$value;
-    }
-    elsif ( $check eq 'number' ) {
-        @bad = grep { m/\D/ } @$value;
-    }
-
-    return unless @bad;
-    my $type = $ref || $check;
-    die "Validation Failed for '$flag=$type': " . join( ", ", @bad ) . "\n";
-}
-
-sub _flag_name {
-    my $self = shift;
-    my ( $key ) = @_;
-
-    # Exact match
-    return $self->args->{$key}->{name}
-        if $self->args->{$key};
-
-    my %matches = map { $self->args->{$_}->{name} => 1 }
-        grep { m/^$key/ }
-            keys %{ $self->args };
-    my @matches = keys %matches;
-
-    die "argument '$key' is ambiguous, could be: " . join( ", " => @matches ) . "\n"
-        if @matches > 1;
-
-    die "unknown argument '$key'\n"
-        unless @matches;
-
-    return $matches[0];
+    # Run the arg (find it if partial unambiguous name is given)
 }
 
 1;
