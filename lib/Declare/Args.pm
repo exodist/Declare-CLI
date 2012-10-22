@@ -2,7 +2,7 @@ package Declare::Args;
 use strict;
 use warnings;
 
-our $VERSION = "0.001";
+our $VERSION = "0.002";
 
 use Carp qw/croak/;
 
@@ -229,204 +229,13 @@ __END__
 
 =head1 NAME
 
-Declare::Args - Simple and Sane Command Line Argument processing
+Declare::Args - Deprecated, see L<Declare::Opts>
 
 =head1 DESCRIPTION
 
-Declare-Args is a sane and declarative way to define and consume command line
-arguments. Any number of dashes can be used, it is not picky about -arg or
---arg. You can use '-arg value' or '-arg=value', it will just work. Shortest
-unambiguous substring of any arg name can be used to specify the argument.
-
-=head1 WHY NOT GETOPT?
-
-The Getopt ecosystem is bloated. Type getopt into search.cpan.org and you will
-be given pages and pages of results. Clearly there is  lot of veriety, and it
-is not clear which one meets what need.
-
-The Getopt ecosystem is also very crufty. Getopt is an old module that uses
-many outdated practices, and an even more outdated interface. Unfortunately
-this has been carried forward into the new getopt modules, possibly for
-compatability/familiarity reasons.
-
-Declare::Args is a full on break from the Getopt ecosystem. Designed from
-scratch using modern practices and interface design.
-
-=head1 SYNOPSIS
-
-=head2 DECLARATIVE
-
-Code:
-
-    #!/usr/bin/env perl
-    use Declare::Args;
-
-    # Define a simple arg, any value works:
-    arg 'simple';
-
-    # Define a boolean arg
-    arg with_x => ( bool => 1 );
-
-    # Define a list
-    arg items => ( list => 1 );
-
-    # Other Options
-    arg complex => (
-        alias       => $name_or_array_of_names,
-        default     => $val_or_sub,
-        check       => $bultin_regex_or_sub,
-        transform   => sub { my $arg = shift; ...; return $arg },
-        description => "This is a complex argument",
-    );
-
-    # Get the (args => descriptions) hash, useful for a help() function
-    my $info = arg_info();
-
-    #########################
-    # Now process some args #
-    #########################
-
-    my ( $list, $args ) = parse_args( @ARGV );
-
-    # $list contains the items from @ARGV that are not specified args (or their
-    # values)
-    # $args is a hashref containing the args and their values.
-
-
-Command Line:
-
-    ./my_command.pl -simple simple_value -with_x --items "a,b, c"
-
-The shortest unambiguous string can be used for each parameter. For instance we
-only have one argument defined above that starts with 's', that is 'simple':
-
-    ./my_command.pl -s simple_value
-
-=head2 OBJECT ORIENTED
-
-    require Declare::Args;
-
-    # Create
-    my $args = Declare::Args->new( %args );
-
-    # Add an arg
-    $args->arg( $name, %config );
-
-    # Get info
-    my $info = $args->info;
-
-    # Parse some args
-    my ( $list, $arg_hash ) = $args->parse( @ARGV );
-
-=head1 META OBJECT
-
-When you import Declare::Args a meta-object is created in your package. The
-meta object can be accessed via the ARGS_META() method/function. This object is
-an instance of Declare::Args and can be manipulated just like any Declare::Args
-object.
-
-=head1 EXPORTS
-
-=over 4
-
-=item arg( $name, %config );
-
-=item arg name => ( %config );
-
-Define an argument
-
-=item my $info = arg_info();
-
-Get a ( name => description ) hashref for use in help output.
-
-=item my ( $list, $args ) = parse_args( @ARGS );
-
-Parse some arguments. $list contains the arguments leftovers (those that do not
-start with '-'), $args is a hashref containing the values of all the dashed
-args.
-
-=back
-
-=head1 METHODS
-
-=over 4
-
-=item $class->new( %args );
-
-Create a new instance.
-
-=item my $class = $args->class;
-
-If the object was created as a meta-object this will contain the class to which
-it applies. When created directly this will always be empty.
-
-=item $args->arg( $name, %config );
-
-Define an argument
-
-=item my $info = $args->info();
-
-Get a ( name => description ) hashref for use in help output.
-
-=item my ( $list, $args ) = $args->parse( @ARGS );
-
-Parse some arguments. $list contains the arguments leftovers (those that do not
-start with '-'), $args is a hashref containing the values of all the dashed
-args.
-
-=back
-
-=head1 ARGUMENT PROPERTIES
-
-=over 4
-
-=item alias => $name
-
-=item alias => [ $name1, $name2 ]
-
-Set aliases for the argument.
-
-=item list => $true_or_false
-
-If true, the argument can be provided on the command line any number of times,
-and comma seperated lists will be split for you.
-
-=item bool => $true_or_false
-
-If true, the argument does not require a value and turns the option on or off.
-A value can be specified using the '--arg=VAL' format. However '--arg val' will
-not treat 'val' as the argument value.
-
-=item default => $scalar
-
-=item default => sub { ... }
-
-Set the default value. If the arg is not specified on the command line this
-value will be used. If the value is not a simple scalar it must be wrapped in a
-code block.
-
-=item check => 'builtin'
-
-=item check => qr/.../
-
-=item check => sub { my $val = shift; ...; return $bool }
-
-Used to validate argument values. Can be a coderef, a regexp, or one of these bultins:
-
-    'number'    The value(s) must be numeric (only contains digit characters)
-    'file'      The value(s) must be a file (uses -f check)
-    'dir'       The value(s) must be a directory (-d check)
-
-=item transform => sub { my $orig = shift; ...; return $new }
-
-Function to transform the provided value into something else. Applies to eahc
-item of a list when list is true.
-
-=item description => $description_string
-
-Used to describe an argument, useful for help() output.
-
-=back
+Deprecated, see L<Declare::Opts>. This module was created because of a
+terminology mistake. It will likely be replaced soon with new functionality.
+The existing functionality can now be found in Declare::Opts
 
 =head1 AUTHORS
 

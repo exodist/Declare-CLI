@@ -1,7 +1,9 @@
 Build.PL
 lib/Declare/Args.pm
+lib/Declare/CLI.pm
+lib/Declare/Opts.pm
 MANIFEST			This list of files
-t/args.t
-README
-META.yml
 META.json
+META.yml
+README
+t/opts.t
