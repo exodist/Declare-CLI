@@ -2,7 +2,7 @@ package Declare::Args;
 use strict;
 use warnings;
 
-our $VERSION = "0.003";
+our $VERSION = "0.004";
 
 use Carp qw/croak/;
 
@@ -19,11 +19,12 @@ gen_default_export 'ARGS_META' => sub {
     return sub { $meta };
 };
 
-default_export arg      => sub { caller->ARGS_META->arg( @_ )   };
-default_export arg_info => sub { caller->ARGS_META->info        };
+default_export arg      => sub { caller->ARGS_META->arg( @_ ) };
+default_export arg_info => sub { caller->ARGS_META->info      };
+default_export run_arg  => sub { caller->ARGS_META->run( @_ ) };
 
-sub class { shift->{class}   }
-sub args  { shift->{args}    }
+sub class { shift->{class} }
+sub args  { shift->{args}  }
 
 sub new {
     my $class = shift;
@@ -100,9 +101,23 @@ sub info {
 
 sub run {
     my $self = shift;
-    my ( $args, $opts ) = @_;
+    my ( $args, $opts, @params ) = @_;
 
-    # Run the arg (find it if partial unambiguous name is given)
+    my $command = shift @$args;
+
+    return $self->args->{$command}->( $args, $opts, @params )
+        if $self->args->{$command};
+
+    # See if we have an unambiguous name
+    my ( $name, @extra ) = grep { m/^$name/ }
+        keys %{ $self->args };
+
+    die "'$command' is ambiguous, did you mean: "
+        . join( ', ', $name, @extra ) . "\n"
+            if @extra;
+
+    return $self->args->{$name}->( $args, $opts, @params )
+        if $self->args->{$name};
 }
 
 1;
@@ -113,7 +128,7 @@ __END__
 
 =head1 NAME
 
-Declare::Args - Deprecated, see L<Declare::Opts>
+Declare::Args - 
 
 =head1 DESCRIPTION
 
