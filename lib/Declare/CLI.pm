@@ -4,6 +4,7 @@ use warnings;
 
 use Carp qw/croak/;
 use Scalar::Util qw/blessed/;
+use List::Util qw/max/;
 
 use Exporter::Declare qw{
     import
@@ -20,22 +21,22 @@ gen_default_export CLI_META => sub {
     return sub { $meta };
 };
 
-gen_default_export arg => sub {
+default_export arg => sub {
     my ( $meta, @params ) = parse_params( @_ );
     $meta->add_arg( @params );
 };
 
-gen_default_export opt => sub {
+default_export opt => sub {
     my ( $meta, @params ) = parse_params( @_ );
     $meta->add_opt( @params );
 };
 
-gen_default_export info => sub {
+default_export usage => sub {
     my ( $meta, @params ) = parse_params( @_ );
-    $meta->info( @params );
+    $meta->usage( @params );
 };
 
-gen_default_export process_cli => sub {
+default_export process_cli => sub {
     my $consumer = shift;
     my ( @cli ) = @_;
     my $meta = $consumer->CLI_META;
@@ -51,8 +52,8 @@ sub parse_params {
     return ( $first->CLI_META, @params )
         if ($type || !$ref) && eval { $first->can( 'CLI_META' ) };
 
-    my $meta = eval { caller(1)->CLI_META };
-    croak "Could not find meta data object"
+    my $meta = eval { caller(2)->CLI_META };
+    croak "Could not find meta data object: $@"
         unless $meta;
 
     return ( $meta, @_ );
@@ -66,7 +67,7 @@ sub _defaults { shift->{defaults}  }
 sub new {
     my $class = shift;
     my %params = @_;
-    my $self = bless { args => {}, opts => {} } => $class;
+    my $self = bless { args => {}, opts => {}, defaults => {} } => $class;
 
     $self->add_arg( $_ => $params{args}->{$_} )
         for keys %{ $params{args} || {} };
@@ -95,6 +96,7 @@ sub add_arg {
     }
 
     $config{name} = $name;
+    $config{description} ||= "No Description.";
 
     croak "You must provide a handler"
         unless $config{handler};
@@ -133,6 +135,7 @@ sub add_opt {
     }
 
     $config{name} = $name;
+    $config{description} ||= "No Description.";
 
     croak "'check' cannot be used with 'bool'"
         if $config{bool} && $config{check};
@@ -196,6 +199,8 @@ sub process_cli {
         next unless $trigger;
         $consumer->$trigger( $opt, $opts->{$opt}, $opts );
     }
+
+    $consumer->set_opts( $opts ) if $consumer->can( 'set_opts' );
 
     # Process args
     for my $arg ( @$args ) {
@@ -312,6 +317,48 @@ sub _item_name {
         unless @matches;
 
     return $matches[0];
+}
+
+sub usage {
+    my $self = shift;
+
+    my $arg_len = max map { length $_ } keys %{ $self->args };
+    my $opt_len = max map { length $_ } keys %{ $self->opts };
+
+    my %seen;
+    my $opts = join "\n" => sort map {
+        my $spec = $self->opts->{$_};
+        my $name = $spec->{name};
+        my $value = $spec->{bool} ? "" : $spec->{list} ? "XXX,..." : "XXX";
+
+        $seen{$name}++ ? () : sprintf(
+            "    -%-${opt_len}s %-7s    %s",
+            $name,
+            $value,
+            $spec->{description}
+        );
+    } keys %{ $self->opts };
+
+    %seen = ();
+    my $cmds = join "\n" => sort map {
+        my $spec = $self->args->{$_};
+        my $name = $spec->{name};
+
+        $seen{$name}++ ? () : sprintf(
+            "    %-${arg_len}s    %s",
+            $name,
+            $spec->{description}
+        );
+    } keys %{ $self->args };
+
+    return <<"    EOT";
+Options:
+$opts
+
+Commands:
+$cmds
+
+    EOT
 }
 
 1;
