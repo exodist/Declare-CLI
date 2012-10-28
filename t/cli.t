@@ -17,16 +17,21 @@ sub set_opts {
     ($self->{opts}) = @_;
 }
 
-can_ok( __PACKAGE__, qw/ CLI_META opt arg process_cli usage / );
-isa_ok( CLI_META(), $CLASS );
-is( CLI_META->class, __PACKAGE__, "correct class" );
-is_deeply( CLI_META->opts, {}, "no opts yet" );
-is_deeply( CLI_META->args, {}, "no args yet" );
+before_all load => sub {
+    my $self = shift;
+    can_ok( $self, qw/ CLI_META opt arg process_cli usage / );
+    isa_ok( CLI_META(), $CLASS );
+    is( CLI_META->class, blessed($self), "correct class" );
+    is_deeply( CLI_META->opts, {}, "no opts yet" );
+    is_deeply( CLI_META->args, {}, "no args yet" );
+};
 
 tests simple => sub {
     my $self = shift;
+
     my $order = 1;
     my $saw = {};
+
     opt 'foo';
     opt 'bar';
     opt 'baz';
@@ -50,8 +55,14 @@ tests simple => sub {
     is_deeply( $saw, { tub => 1, blug => 2 }, "Args handled properly" );
     is_deeply( $self->opts, { foo => 'zoot', bar => 'a', baz => 'b' }, "got opts" );
 
+    arg xxxa => sub { 1 };
+    arg xxxb => sub { 1 };
+
+    ok( !eval { $self->process_cli( 'xxx' ); 1 }, "Ambiguity" );
+    like( $@, qr/partial argument 'xxx' is ambiguous, could be: xxxa, xxxb/, "Ambiguity Message" );
+
     ok( !eval { $self->process_cli( '-b' => 'xxx' ); 1 }, "Ambiguity" );
-    like( $@, qr/option 'b' is ambiguous, could be: bar, baz/, "Ambiguity Message" );
+    like( $@, qr/partial option 'b' is ambiguous, could be: bar, baz/, "Ambiguity Message" );
 
     ok( !eval { $self->process_cli( '-x' => 'xxx' ); 1 }, "Invalid" );
     like( $@, qr/unknown option 'x'/, "Invalid Message" );
@@ -86,11 +97,21 @@ Commands:
     EOT
 };
 
-1;
-
-__END__
-
 tests complex => sub {
+    my $self = shift;
+
+    my $order = 1;
+    my $saw = {};
+    arg 'zubba' => (
+        alias => '-tubb',
+        handler => sub { $saw->{tub}  = $order++ }
+    );
+    arg 'blug' => sub {
+        is( $_[0], $self, "got self" );
+        is( $_[1], 'blug', "got this arg" );
+        $saw->{blug} = $order++
+    };
+
     opt foo => ( bool => 1 );
     opt bar => ( list => 1 );
     opt baz => ( alias => 'zag' );
@@ -100,7 +121,7 @@ tests complex => sub {
     ok( !eval { opt boot => ( bool => 1, list => 1 ); 1 }, "invalid props" );
     like( $@, qr/opt properties 'list' and 'bool' are mutually exclusive/, "invalid prop message" );
 
-    my ( $args, $opts ) = parse_opts(
+    $self->process_cli(
         '-f',
         '--bar' => 'a,b,c, d , e',
         '-bar=1, 2 ,3',
@@ -110,9 +131,9 @@ tests complex => sub {
         'blug'
     );
 
-    is_deeply( $args, ['-tub', 'blug'], "Got params" );
+    is_deeply( $saw, { tub => 1, blug => 2 }, "Args handled properly" );
     is_deeply(
-        $opts,
+        $self->opts,
         {
             foo => 1,
             bar => [qw/a b c d e 1 2 3/],
@@ -120,19 +141,18 @@ tests complex => sub {
             buz => 1,
             tin => 'fred'
         },
-        "got flags"
+        "got opts"
     );
 
-    ( $args, $opts ) = parse_opts(
+    $self->process_cli(
         '-f=0',
         '-buz',
         '--tinnn',
         "din dan"
     );
 
-    is_deeply( $args, [], "Got params" );
     is_deeply(
-        $opts,
+        $self->opts,
         {
             foo => 0,
             buz => 0,
@@ -143,6 +163,8 @@ tests complex => sub {
 };
 
 tests validation => sub {
+    my $self = shift;
+
     opt code   => ( check => sub { $_[0] eq 'food' });
     opt number => ( check => 'number', list => 1    );
     opt dir    => ( check => 'dir',    list => 1    );
@@ -155,7 +177,7 @@ tests validation => sub {
     ok( !eval { opt bad2 => ( check => []    ); 1 }, "invalid check (ref)" );
     like( $@, qr/'ARRAY\(0x[\da-fA-F]*\)' is not a valid value for 'check'/, "invalid check message" );
 
-    lives_ok { parse_opts(
+    lives_ok { $self->process_cli(
         '-code=food',
         '--regex' => 'AAA Whatever',
         '-number' => '100, 22, 3435',
@@ -163,42 +185,63 @@ tests validation => sub {
         '-dir'    => '., ..',
     ) } "Valid opts";
 
-    ok( !eval { parse_opts( '--code=tub' ); 1 }, "fail check (code)" );
+    ok( !eval { $self->process_cli( '--code=tub' ); 1 }, "fail check (code)" );
     like( $@, qr/Validation Failed for 'code=CODE': tub/, "fail check message (code)" );
 
-    ok( !eval { parse_opts( '-regex' => 'Whatever' ); 1 }, "fail check (regex)" );
+    ok( !eval { $self->process_cli( '-regex' => 'Whatever' ); 1 }, "fail check (regex)" );
     like( $@, qr/Validation Failed for 'regex=Regexp': Whatever/, "fail check message (regex)" );
 
-    ok( !eval { parse_opts( '--number' => 'a,b,1,2'); 1 }, "fail check (number)" );
+    ok( !eval { $self->process_cli( '--number' => 'a,b,1,2'); 1 }, "fail check (number)" );
     like( $@, qr/Validation Failed for 'number=number': a, b/, "fail check message (number)" );
 
-    ok( !eval { parse_opts( '-file' => '/Some/Fake/File' ); 1 }, "fail check (file)" );
+    ok( !eval { $self->process_cli( '-file' => '/Some/Fake/File' ); 1 }, "fail check (file)" );
     like( $@, qr{Validation Failed for 'file=file': /Some/Fake/File}, "fail check message (file)" );
 
-    ok( !eval { parse_opts( '-dir' => '/Some/Fake/Dir,/Another/Fake/Dir,.,..' ); 1 }, "fail check (dir)" );
+    ok( !eval { $self->process_cli( '-dir' => '/Some/Fake/Dir,/Another/Fake/Dir,.,..' ); 1 }, "fail check (dir)" );
     like( $@, qr{Validation Failed for 'dir=dir': /Some/Fake/Dir, /Another/Fake/Dir}, "fail check message (dir)" );
 };
 
-tests transform => sub {
-    opt add5 => ( transform => sub { $_[0] + 5 }, check => 'number' );
-    opt add6 => ( transform => sub { $_[0] + 6 }, check => 'number', list => 1 );
+tests transform_and_trigger => sub {
+    my $self = shift;
 
-    my ( $args, $opts ) = parse_opts(
-        '-add5' => '5',
-        '-add6' => '1,2,3',
-        '--',
-        '-tub',
-        'blug'
+    my %triggered;
+
+    opt add5 => (
+        transform => sub { $_[1] + 5 },
+        check => 'number',
+        trigger => sub {
+            is( $_[0], $self, "got self" );
+            is( $_[1], 'add5', "got opt name" );
+            is( $_[2], '10', "got value" );
+            $triggered{$_[1]}++;
+        },
+    );
+    opt add6 => (
+        transform => sub { $_[1] + 6 },
+        check => 'number',
+        list => 1,
+        trigger => sub {
+            is( $_[0], $self, "got self" );
+            is( $_[1], 'add6', "got opt name" );
+            is_deeply( $_[2], [ 7, 8, 9 ], "got value" );
+            $triggered{$_[1]}++;
+        },
     );
 
-    is_deeply( $args, ['-tub', 'blug'], "Got params" );
+    $self->process_cli(
+        '-add5' => '5',
+        '-add6' => '1,2,3',
+    );
+
+    is_deeply( \%triggered, { add5 => 1, add6 => 1 }, "triggers fired" );
+
     is_deeply(
-        $opts,
+        $self->opts,
         {
             add5 => 10,
             add6 => [ 7, 8 ,9 ],
         },
-        "got flags"
+        "got opts"
     );
 };
 

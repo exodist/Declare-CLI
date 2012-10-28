@@ -189,15 +189,30 @@ sub process_cli {
         $opts->{$opt} = ref $val ? $val->() : $val;
     }
 
-    # Validate
-    $self->_validate( $_, $opts->{$_} )
-        for keys %$opts;
-
-    # Trigger
     for my $opt ( keys %$opts ) {
-        my $trigger = $self->opts->{$opt}->{trigger};
-        next unless $trigger;
-        $consumer->$trigger( $opt, $opts->{$opt}, $opts );
+        my $values = $opts->{$opt};
+        my $list;
+
+        if ( ref $values && ref $values eq 'ARRAY' ) {
+            $list = 1;
+        }
+        else {
+            $list = 0;
+            $values = [ $values ];
+        }
+
+        my $transform = $self->opts->{$opt}->{transform};
+        my $trigger   = $self->opts->{$opt}->{trigger};
+
+        $values = [ map { $consumer->$transform( $_ ) } @$values ]
+            if $transform;
+
+        $self->_validate( $opt, $values );
+
+        $opts->{$opt} = $list ? $values : $values->[0];
+
+        $consumer->$trigger( $opt, $opts->{$opt}, $opts )
+            if $trigger;
     }
 
     $consumer->set_opts( $opts ) if $consumer->can( 'set_opts' );
@@ -226,7 +241,7 @@ sub parse_cli {
         elsif ( $item =~ m/^-+([^-=]+)(?:=(.+))?$/ && !$no_opts ) {
             my ( $key, $value ) = ( $1, $2 );
 
-            my $name = $self->_item_name( $self->opts, $key );
+            my $name = $self->_item_name( 'option', $self->opts, $key );
             $value = $self->_opt_value(
                 $name,
                 $value,
@@ -241,7 +256,7 @@ sub parse_cli {
             }
         }
         else {
-            push @$args => $self->_item_name( $self->args, $item );
+            push @$args => $self->_item_name( 'argument', $self->args, $item );
         }
     }
 
@@ -299,7 +314,7 @@ sub _validate {
 
 sub _item_name {
     my $self = shift;
-    my ( $hash, $key ) = @_;
+    my ( $type, $hash, $key ) = @_;
 
     # Exact match
     return $hash->{$key}->{name}
@@ -310,7 +325,7 @@ sub _item_name {
             keys %{ $hash };
     my @matches = keys %matches;
 
-    die "partial option '$key' is ambiguous, could be: " . join( ", " => @matches ) . "\n"
+    die "partial $type '$key' is ambiguous, could be: " . join( ", " => sort @matches ) . "\n"
         if @matches > 1;
 
     die "unknown option '$key'\n"
