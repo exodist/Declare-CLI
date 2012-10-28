@@ -2,7 +2,7 @@ package Declare::Opts;
 use strict;
 use warnings;
 
-our $VERSION = "0.002";
+our $VERSION = "0.005";
 
 use Carp qw/croak/;
 
@@ -229,9 +229,11 @@ __END__
 
 =head1 NAME
 
-Declare::Opts - Simple and Sane Command Line Argument processing
+Declare::Opts - (Deprecated) Simple and Sane Command Line Argument processing
 
 =head1 DESCRIPTION
+
+Deprecated: see L<Declare::CLI>
 
 Declare-Opts is a sane and declarative way to define and consume command line
 options. Any number of dashes can be used, it is not picky about -opt or

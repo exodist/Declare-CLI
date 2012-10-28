@@ -4,7 +4,7 @@ use warnings;
 use Module::Build;
 
 my $build = Module::Build->new(
-    module_name => 'Declare::Opts',
+    module_name => 'Declare::CLI',
     license     => 'perl',
     dist_author => 'Chad Granum <exodist7@gmail.com>',
     create_readme => 1,
@@ -16,8 +16,8 @@ my $build = Module::Build->new(
     },
     meta_merge => {
         resources => {
-            repository  => 'http://github.com/exodist/Declare-Opts',
-            bugtracker  => 'http://github.com/exodist/Declare-Opts',
+            repository  => 'http://github.com/exodist/Declare-CLI',
+            bugtracker  => 'http://github.com/exodist/Declare-CLI',
         },
     }
 );
