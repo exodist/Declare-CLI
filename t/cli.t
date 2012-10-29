@@ -87,7 +87,7 @@ Options:
     -longer XXX        this is longer
     -nodesc XXX        No Description.
 
-Commands:
+Arguments:
     one      No Description.
     three    is three
     two      No Description.
@@ -105,7 +105,7 @@ Options:
     -longer XXX        this is longer
     -nodesc XXX        nodesc is now described
 
-Commands:
+Arguments:
     one      Just a one
     three    is three
     two      No Description.

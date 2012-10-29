@@ -22,27 +22,27 @@ gen_default_export CLI_META => sub {
 };
 
 default_export arg => sub {
-    my ( $meta, @params ) = parse_params( @_ );
+    my ( $meta, @params ) = _parse_params( @_ );
     $meta->add_arg( @params );
 };
 
 default_export opt => sub {
-    my ( $meta, @params ) = parse_params( @_ );
+    my ( $meta, @params ) = _parse_params( @_ );
     $meta->add_opt( @params );
 };
 
 default_export describe_opt => sub {
-    my ( $meta, @params ) = parse_params( @_ );
+    my ( $meta, @params ) = _parse_params( @_ );
     $meta->describe( 'opt' => @params );
 };
 
 default_export describe_arg => sub {
-    my ( $meta, @params ) = parse_params( @_ );
+    my ( $meta, @params ) = _parse_params( @_ );
     $meta->describe( 'arg' => @params );
 };
 
 default_export usage => sub {
-    my ( $meta, @params ) = parse_params( @_ );
+    my ( $meta, @params ) = _parse_params( @_ );
     $meta->usage( @params );
 };
 
@@ -53,7 +53,7 @@ default_export process_cli => sub {
     return $meta->process_cli( $consumer, @cli );
 };
 
-sub parse_params {
+sub _parse_params {
     my ($first, @params) = @_;
 
     my $ref = ref $first;
@@ -203,7 +203,7 @@ sub process_cli {
     my $self = shift;
     my ( $consumer, @cli ) = @_;
 
-    my ( $opts, $args ) = $self->parse_cli( $consumer, @cli );
+    my ( $opts, $args ) = $self->_parse_cli( @cli );
 
     # Add defaults for opts not provided
     for my $opt ( keys %{ $self->_defaults } ) {
@@ -247,9 +247,9 @@ sub process_cli {
     return $consumer->$handler( $arg, $opts, @$args );
 }
 
-sub parse_cli {
+sub _parse_cli {
     my $self = shift;
-    my ( $consumer, @cli ) = @_;
+    my ( @cli ) = @_;
 
     my $args = [];
     my $opts = {};
@@ -395,7 +395,7 @@ sub usage {
 Options:
 $opts
 
-Commands:
+Arguments:
 $cmds
 
     EOT
@@ -499,6 +499,171 @@ not really useful.
     # Sort files in the current dir
     $ your_prog.pl sort ./*
 
-=head1
+=head1 EXPORTS
+
+=over 4
+
+=item $meta = CLI_META()
+
+=item $meta = $CLASS->CLI_META()
+
+=item $meta = $obj->CLI_META()
+
+Get the meta oject. Meta object will be returned in any usage, method on class,
+method on object, or function.
+
+=item arg 'NAME' => ( %PROPERTIES )
+
+=item $obj->arg( 'NAME' => %PROPERTIES )
+
+Can be used as function in class, or method on class/object.
+
+Declare a new argument. See the L<ARGUMENT PROPERTIES> section for more
+details.
+
+=item opt 'NAME' => ( %PROPERTIES )
+
+=item $obj->opt( 'NAME' => %PROPERTIES )
+
+Can be used as function in class, or method on class/object.
+
+Declare a new option. See the L<OPTION PROPERTIES> section for more
+details.
+
+=item describe_opt 'NAME' => "DESCRIPTION"
+
+=item $obj->describe_opt( 'NAME' => "DESCRIPTION" )
+
+Can be used as function in class, or method on class/object.
+
+Used to add a description to an option that is already defined.
+
+=item describe_arg 'NAME' => "DESCRIPTION
+
+=item $obj->describe_arg( 'NAME' => "DESCRIPTION" )
+
+Can be used as function in class, or method on class/object.
+
+Used to add a description to an argument that is already defined.
+
+=item $usage = usage()
+
+=item $usage = $obj->usage()
+
+Can be used as function in class, or method on class/object.
+
+Get a usage string listing all options and arguments.
+
+=item $result = $obj->process_cli( @ARGS )
+
+Must be used as an object method.
+
+Process some command line input. If an argument is provided as input the result
+of it will be returned. If no argument is specified, the options hash is
+returned.
+
+=back
+
+=head1 OPTION PROPERTIES
+
+=over 4
+
+=item alias => "ALIAS_NAME"
+
+=item alias => [ "ALIAS_NAME", ... ]
+
+=item list => $FLAG
+
+=item bool => $FLAG
+
+=item default => $VALUE
+
+=item default => sub { [ @VALUES ] }
+
+=item description => $STRING
+
+=item trigger => sub { ... }
+
+=item transform => sub { ... }
+
+=item check => ...
+
+See L<OPTION "check" PROPERTY>
+
+=back
+
+=head2 OPTION "check" PROPERTY
+
+=over 4
+
+=item check => qr/.../
+
+=item check => sub { ... }
+
+=item check => 'file'
+
+=item check => 'dir'
+
+=item check => 'number'
+
+=back
+
+=head1 ARGUMENT PROPERTIES
+
+=over 4
+
+=item alias => "ALIAS_NAME"
+
+=item alias => [ "ALIAS_NAME", ... ]
+
+=item description => "The Description"
+
+=item handler => sub { ... }
+
+=back
+
+=head1 META OBJECT METHODS
+
+You should rarely if ever need to access these directly.
+
+=over 4
+
+=item $meta = $meta_class->new( opts => {...}, args => {...} )
+
+=item $class = $meta->class
+
+=item $args = $meta->args
+
+=item $opts = $meta->opts
+
+=item $regex = $meta->valid_arg_params
+
+=item $regex = $meta->valid_opt_params
+
+=item $usage = $meta->usage
+
+=item $result = $meta->process_cli( $INSTANCE, @ARGS )
+
+=item $meta->describe( $TYPE, $NAME, $DESCRIPTION )
+
+=item $meta->add_arg( $NAME => %PROPERTIES )
+
+=item $meta->add_opt( $NAME => %PROPERTIES )
+
+=back
+
+=head1 AUTHORS
+
+Chad Granum L<exodist7@gmail.com>
+
+=head1 COPYRIGHT
+
+Copyright (C) 2012 Chad Granum
+
+Declare-Opts is free software; Standard perl licence.
+
+Declare-Opts is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the license for more details.
 
 =cut
