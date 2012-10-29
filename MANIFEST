@@ -3,7 +3,8 @@ lib/Declare/Args.pm
 lib/Declare/CLI.pm
 lib/Declare/Opts.pm
 MANIFEST			This list of files
-META.json
-META.yml
 README
+t/cli.t
 t/opts.t
+META.yml
+META.json

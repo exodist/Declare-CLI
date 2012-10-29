@@ -19,7 +19,7 @@ sub set_opts {
 
 before_all load => sub {
     my $self = shift;
-    can_ok( $self, qw/ CLI_META opt arg process_cli usage / );
+    can_ok( $self, qw/ CLI_META opt arg process_cli usage describe_opt describe_arg / );
     isa_ok( CLI_META(), $CLASS );
     is( CLI_META->class, blessed($self), "correct class" );
     is_deeply( CLI_META->opts, {}, "no opts yet" );
@@ -29,19 +29,17 @@ before_all load => sub {
 tests simple => sub {
     my $self = shift;
 
-    my $order = 1;
     my $saw = {};
+    arg '-tub' => sub {
+        is( $_[0], $self, "got self" );
+        is( $_[1], '-tub', "got this arg" );
+        is( ref( $_[2] ), 'HASH', "got opts hash" );
+        $saw->{tub} = 1;
+    };
 
     opt 'foo';
     opt 'bar';
     opt 'baz';
-    arg '-tub' => sub { $saw->{tub}  = $order++ };
-    arg 'blug' => sub {
-        is( $_[0], $self, "got self" );
-        is( $_[1], 'blug', "got this arg" );
-        is_deeply( $_[2], { foo => 'zoot', bar => 'a', baz => 'b' }, "got opts" );
-        $saw->{blug} = $order++
-    };
 
     $self->process_cli(
         '--foo=zoot',
@@ -52,7 +50,7 @@ tests simple => sub {
         'blug'
     );
 
-    is_deeply( $saw, { tub => 1, blug => 2 }, "Args handled properly" );
+    is_deeply( $saw, { tub => 1 }, "Args handled properly" );
     is_deeply( $self->opts, { foo => 'zoot', bar => 'a', baz => 'b' }, "got opts" );
 
     arg xxxa => sub { 1 };
@@ -95,22 +93,44 @@ Commands:
     two      No Description.
 
     EOT
+
+    describe_opt nodesc => "nodesc is now described";
+    describe_arg one => "Just a one";
+
+    is( $self->usage, <<"    EOT", "Get usage" );
+Options:
+    -bool              this is bool
+    -foo    XXX        this is foo
+    -list   XXX,...    this is list
+    -longer XXX        this is longer
+    -nodesc XXX        nodesc is now described
+
+Commands:
+    one      Just a one
+    three    is three
+    two      No Description.
+
+    EOT
+
+
 };
 
 tests complex => sub {
     my $self = shift;
 
-    my $order = 1;
     my $saw = {};
     arg 'zubba' => (
         alias => '-tubb',
-        handler => sub { $saw->{tub}  = $order++ }
+        handler => sub {
+            is( $_[0], $self, "got self" );
+            is( $_[1], 'zubba', "got this arg" );
+            is( ref( $_[2] ), 'HASH', "got opts hash" );
+            is( $_[3], 'blug', "got next args" );
+            is( $_[4], 'foo', "got next args" );
+            $saw->{tub} = 1;
+        }
     );
-    arg 'blug' => sub {
-        is( $_[0], $self, "got self" );
-        is( $_[1], 'blug', "got this arg" );
-        $saw->{blug} = $order++
-    };
+    arg 'blug' => sub { $saw->{blug} = 1 };
 
     opt foo => ( bool => 1 );
     opt bar => ( list => 1 );
@@ -128,10 +148,11 @@ tests complex => sub {
         '-zag=b',
         '--',
         '-tub',
-        'blug'
+        'blug',
+        'foo',
     );
 
-    is_deeply( $saw, { tub => 1, blug => 2 }, "Args handled properly" );
+    is_deeply( $saw, { tub => 1 }, "Args handled properly" );
     is_deeply(
         $self->opts,
         {

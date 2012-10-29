@@ -31,6 +31,16 @@ default_export opt => sub {
     $meta->add_opt( @params );
 };
 
+default_export describe_opt => sub {
+    my ( $meta, @params ) = parse_params( @_ );
+    $meta->describe( 'opt' => @params );
+};
+
+default_export describe_arg => sub {
+    my ( $meta, @params ) = parse_params( @_ );
+    $meta->describe( 'arg' => @params );
+};
+
 default_export usage => sub {
     my ( $meta, @params ) = parse_params( @_ );
     $meta->usage( @params );
@@ -76,6 +86,19 @@ sub new {
         for keys %{ $params{opts} || {} };
 
     return $self;
+}
+
+sub describe {
+    my $self = shift;
+    my ( $type, $name, $desc ) = @_;
+
+    my $meth = $type . 's';
+    croak "No such $type '$name'"
+        unless $self->$meth->{$name};
+
+    $self->$meth->{$name}->{description} = $desc if $desc;
+
+    return $self->$meth->{$name}->{description};
 }
 
 sub valid_arg_params {
@@ -217,13 +240,11 @@ sub process_cli {
 
     $consumer->set_opts( $opts ) if $consumer->can( 'set_opts' );
 
-    # Process args
-    for my $arg ( @$args ) {
-        my $handler = $self->args->{$arg}->{handler};
-        $consumer->$handler( $arg, $opts );
-    }
+    return $opts unless @$args;
 
-    return 1;
+    my $arg = shift @$args;
+    my $handler = $self->args->{$arg}->{handler};
+    return $consumer->$handler( $arg, $opts, @$args );
 }
 
 sub parse_cli {
@@ -255,7 +276,11 @@ sub parse_cli {
                 $opts->{$name} = $value;
             }
         }
+        elsif ( @$args ) {
+            push @$args => $item;
+        }
         else {
+            # First item gets resolved
             push @$args => $self->_item_name( 'argument', $self->args, $item );
         }
     }
@@ -384,10 +409,96 @@ __END__
 
 =head1 NAME
 
-Declare::CLI - Declarative CLI definition.
+Declare::CLI - Declarative command line interface builder.
 
 =head1 DESCRIPTION
 
-This will tie together L<Declare::Opts> and L<Declare::Args>.
+This module can be used to build command line utilities. It will handle option
+and argument parsing according to your declarations. It also provides tools for
+usage statements.
+
+=head1 SYNOPSIS
+
+your_prog.pl
+
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Your::Prog;
+
+    my @results = Your::Prog->new->process_cli( @ARGV );
+
+    print join "\n", @results;
+
+Your/Prog.pl
+
+    package Your::Prog;
+    use strict;
+    use warnings;
+
+    use Declare::CLI;
+
+    opt 'enable-X' => (
+        bool => 1,
+        description => "Include X"
+    );
+    opt config => (
+        default => "$ENV{HOME}/.config/your_prog.conf"
+        validate => 'file',
+        description => 'the config file'
+    );
+    opt types => (
+        list => 1,
+        default => sub { [ 'txt', 'rtf', 'doc' ] },
+        description => "File types on which to act",
+    );
+
+    arg filter => sub {
+        my $self = shift;
+        my ( $opts, $args ) = @_;
+        my $types = { map { $_ => 1 } @{ $opts->{types}} };
+        return grep {
+            m/\..({3,4})$/;
+            $1 && $types->{$1} ? 1 : 0;
+        } @$args;
+    };
+
+    # Descriptions are displayed in usage.
+    describe_arg filter => "Filters args to only show those specified in types";
+
+    arg sort => (
+        describe => "sort args",
+        handler => sub {
+            my $self = shift;
+            my ( $opts, $args ) = @_;
+            return sort @$args;
+        };
+    };
+
+    arg help => sub {
+        my $self = shift;
+        my ( $opts, $args ) = @_;
+
+        return (
+            "Usage: $0 [OPTS] [COMMAND] [FILES]\n",
+            $self->usage
+        );
+    };
+
+Using it:
+
+B<Note:> not all options are used here. Other options are for example only and
+not really useful.
+
+    # Show all options and args
+    $ your_prod.pl help
+
+    # Find all txt, jpg, and gif files in the current dir
+    $ your_prog.pl -types txt,jpg,gif filter ./*
+
+    # Sort files in the current dir
+    $ your_prog.pl sort ./*
+
+=head1
 
 =cut
