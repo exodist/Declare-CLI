@@ -1,6 +1,189 @@
 NAME
-    Declare::CLI - Declarative CLI definition.
+    Declare::CLI - Declarative command line interface builder.
 
 DESCRIPTION
-    This will tie together Declare::Opts and Declare::Args.
+    This module can be used to build command line utilities. It will handle
+    option and argument parsing according to your declarations. It also
+    provides tools for usage statements.
+
+SYNOPSIS
+    your_prog.pl
+
+        #!/usr/bin/perl
+        use strict;
+        use warnings;
+        use Your::Prog;
+
+        my @results = Your::Prog->new->process_cli( @ARGV );
+
+        print join "\n", @results;
+
+    Your/Prog.pl
+
+        package Your::Prog;
+        use strict;
+        use warnings;
+
+        use Declare::CLI;
+
+        opt 'enable-X' => (
+            bool => 1,
+            description => "Include X"
+        );
+        opt config => (
+            default => "$ENV{HOME}/.config/your_prog.conf"
+            validate => 'file',
+            description => 'the config file'
+        );
+        opt types => (
+            list => 1,
+            default => sub { [ 'txt', 'rtf', 'doc' ] },
+            description => "File types on which to act",
+        );
+
+        arg filter => sub {
+            my $self = shift;
+            my ( $opts, $args ) = @_;
+            my $types = { map { $_ => 1 } @{ $opts->{types}} };
+            return grep {
+                m/\..({3,4})$/;
+                $1 && $types->{$1} ? 1 : 0;
+            } @$args;
+        };
+
+        # Descriptions are displayed in usage.
+        describe_arg filter => "Filters args to only show those specified in types";
+
+        arg sort => (
+            describe => "sort args",
+            handler => sub {
+                my $self = shift;
+                my ( $opts, $args ) = @_;
+                return sort @$args;
+            };
+        };
+
+        arg help => sub {
+            my $self = shift;
+            my ( $opts, $args ) = @_;
+
+            return (
+                "Usage: $0 [OPTS] [COMMAND] [FILES]\n",
+                $self->usage
+            );
+        };
+
+    Using it:
+
+    Note: not all options are used here. Other options are for example only
+    and not really useful.
+
+        # Show all options and args
+        $ your_prod.pl help
+
+        # Find all txt, jpg, and gif files in the current dir
+        $ your_prog.pl -types txt,jpg,gif filter ./*
+
+        # Sort files in the current dir
+        $ your_prog.pl sort ./*
+
+EXPORTS
+    $meta = CLI_META()
+    $meta = $CLASS->CLI_META()
+    $meta = $obj->CLI_META()
+        Get the meta oject. Meta object will be returned in any usage,
+        method on class, method on object, or function.
+
+    arg 'NAME' => ( %PROPERTIES )
+    $obj->arg( 'NAME' => %PROPERTIES )
+        Can be used as function in class, or method on class/object.
+
+        Declare a new argument. See the "ARGUMENT PROPERTIES" section for
+        more details.
+
+    opt 'NAME' => ( %PROPERTIES )
+    $obj->opt( 'NAME' => %PROPERTIES )
+        Can be used as function in class, or method on class/object.
+
+        Declare a new option. See the "OPTION PROPERTIES" section for more
+        details.
+
+    describe_opt 'NAME' => "DESCRIPTION"
+    $obj->describe_opt( 'NAME' => "DESCRIPTION" )
+        Can be used as function in class, or method on class/object.
+
+        Used to add a description to an option that is already defined.
+
+    describe_arg 'NAME' => "DESCRIPTION
+    $obj->describe_arg( 'NAME' => "DESCRIPTION" )
+        Can be used as function in class, or method on class/object.
+
+        Used to add a description to an argument that is already defined.
+
+    $usage = usage()
+    $usage = $obj->usage()
+        Can be used as function in class, or method on class/object.
+
+        Get a usage string listing all options and arguments.
+
+    $result = $obj->process_cli( @ARGS )
+        Must be used as an object method.
+
+        Process some command line input. If an argument is provided as input
+        the result of it will be returned. If no argument is specified, the
+        options hash is returned.
+
+OPTION PROPERTIES
+    alias => "ALIAS_NAME"
+    alias => [ "ALIAS_NAME", ... ]
+    list => $FLAG
+    bool => $FLAG
+    default => $VALUE
+    default => sub { [ @VALUES ] }
+    description => $STRING
+    trigger => sub { ... }
+    transform => sub { ... }
+    check => ...
+        See "OPTION "check" PROPERTY"
+
+  OPTION "check" PROPERTY
+    check => qr/.../
+    check => sub { ... }
+    check => 'file'
+    check => 'dir'
+    check => 'number'
+
+ARGUMENT PROPERTIES
+    alias => "ALIAS_NAME"
+    alias => [ "ALIAS_NAME", ... ]
+    description => "The Description"
+    handler => sub { ... }
+
+META OBJECT METHODS
+    You should rarely if ever need to access these directly.
+
+    $meta = $meta_class->new( opts => {...}, args => {...} )
+    $class = $meta->class
+    $args = $meta->args
+    $opts = $meta->opts
+    $regex = $meta->valid_arg_params
+    $regex = $meta->valid_opt_params
+    $usage = $meta->usage
+    $result = $meta->process_cli( $INSTANCE, @ARGS )
+    $meta->describe( $TYPE, $NAME, $DESCRIPTION )
+    $meta->add_arg( $NAME => %PROPERTIES )
+    $meta->add_opt( $NAME => %PROPERTIES )
+
+AUTHORS
+    Chad Granum exodist7@gmail.com
+
+COPYRIGHT
+    Copyright (C) 2012 Chad Granum
+
+    Declare-Opts is free software; Standard perl licence.
+
+    Declare-Opts is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the license for
+    more details.
 
