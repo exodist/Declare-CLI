@@ -87,6 +87,12 @@ SYNOPSIS
         # Sort files in the current dir
         $ your_prog.pl sort ./*
 
+        # Options and arguments can be short form as well, the shortest unambiguous
+        # match will be used. For instance if you have options tyaaaa and tybbbbb
+        # you could use -tya and -tyb to set them. just -ty is ambiguous and will
+        # fail.
+        $ your_prog.pl -t txt,jpg,gif filt ./*
+
 EXPORTS
     $meta = CLI_META()
     $meta = $CLASS->CLI_META()
@@ -136,43 +142,137 @@ EXPORTS
 OPTION PROPERTIES
     alias => "ALIAS_NAME"
     alias => [ "ALIAS_NAME", ... ]
+        Set aliases for the option. Any alias can be used to set the option.
+        Aliases can be used for partial matches (short form)
+
     list => $FLAG
+        If true the option will hold a list of values. Values can be comma
+        seperated, or you can provide the option multiple times and each
+        value will be added to the others.
+
     bool => $FLAG
+        If true the option can only have a true or false value, and will not
+        accept an argument in the '-option value' form. You can specify a
+        true or false value using the '-option=VAL' form. Normally however
+        simply specifying the option '-option' will set it to true. If you
+        provide a default value that is true, specifying the opton will
+        negate that so that specifying the option on the command line turns
+        it off.
+
     default => $VALUE
     default => sub { [ @VALUES ] }
+        Specify the value that will be used by default when the option is
+        not listed on the command line.
+
     description => $STRING
+        Provide a description for the option. This is used in the 'usage'
+        output.
+
     trigger => sub { ... }
+        This gets called when the option is set, even if it is set to the
+        default value. The the sub is called as a method on your instance.
+        The method receives 3 arguments, the name of the option, the value
+        set, and the hashref of "{ option =" value } of all options
+        processed so far. The return value is ignored.
+
+            trigger => sub {
+                my $self = shift;
+                my ( $name, $value, $opts ) = @_;
+                ...
+            },
+
     transform => sub { ... }
+        This is called whenever the value is set, before any triggers. This
+        sub allows you to modify the value before it is assigned. For list
+        params each value is passed to the transform sub seperately. This
+        sub is called as a method on the instance. This method receives the
+        value as its only argument.
+
     check => ...
         See "OPTION "check" PROPERTY"
 
   OPTION "check" PROPERTY
+    The "check" option is used to validate inputs to options. You can
+    provide a regex, a coderef, or a couple of premade options.
+
     check => qr/.../
+        Validate the value(s) against a regex.
+
     check => sub { ... }
+        Validate the value against the sub. The sub is called as a function,
+        not a method. The function receives only one argument, the value to
+        be checked. In list options each item is checked seperately.
+
     check => 'file'
+        Validate that the value(s) are all valid files. (-f check)
+
     check => 'dir'
+        Validate that the value(s) are all valid directories. (-f check)
+
     check => 'number'
+        Validate that the value(s) are all numerical. (rejects values that
+        contain a character matched by qr/\D/).
 
 ARGUMENT PROPERTIES
     alias => "ALIAS_NAME"
     alias => [ "ALIAS_NAME", ... ]
+        Set aliases for the argument. Any alias can be used to set the
+        argument. Aliases can be used for partial matches (short form)
+
     description => "The Description"
+        Provide a description for the argument. This is used in the 'usage'
+        output.
+
     handler => sub { ... }
+        This is the sub that gets called if the argument is provided on the
+        command line. The sub is called as a method on your instance. This
+        method is called with 2+ argument, the name of the arg, the { option
+        => value } hash, and the rest of the arguments from the command line
+        are the remaining arguments.
+
+            handler => sub {
+                my $self = shift;
+                my ( $name, $options, @args ) = @_;
+                ...
+            },
 
 META OBJECT METHODS
     You should rarely if ever need to access these directly.
 
     $meta = $meta_class->new( opts => {...}, args => {...} )
+        Create a new meta object.
+
     $class = $meta->class
+        Get the class for which the meta object was constructed.
+
     $args = $meta->args
+        Get the hashref of { arg => \%config }
+
     $opts = $meta->opts
+        Get the hashref of { opt => \%config }
+
     $regex = $meta->valid_arg_params
+        Get a regex that can be used to validate the options available for
+        args.
+
     $regex = $meta->valid_opt_params
+        Get a regex that can be used to validate the options available for
+        opts.
+
     $usage = $meta->usage
+        Get the usage information.
+
     $result = $meta->process_cli( $INSTANCE, @ARGS )
+        Process the command line arguments on $INSTANCE.
+
     $meta->describe( $TYPE, $NAME, $DESCRIPTION )
+        Add a description to an argument or option.
+
     $meta->add_arg( $NAME => %PROPERTIES )
+        Add an argument.
+
     $meta->add_opt( $NAME => %PROPERTIES )
+        Add an option.
 
 AUTHORS
     Chad Granum exodist7@gmail.com

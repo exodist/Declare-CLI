@@ -499,6 +499,12 @@ not really useful.
     # Sort files in the current dir
     $ your_prog.pl sort ./*
 
+    # Options and arguments can be short form as well, the shortest unambiguous
+    # match will be used. For instance if you have options tyaaaa and tybbbbb
+    # you could use -tya and -tyb to set them. just -ty is ambiguous and will
+    # fail.
+    $ your_prog.pl -t txt,jpg,gif filt ./*
+
 =head1 EXPORTS
 
 =over 4
@@ -572,19 +578,55 @@ returned.
 
 =item alias => [ "ALIAS_NAME", ... ]
 
+Set aliases for the option. Any alias can be used to set the option. Aliases
+can be used for partial matches (short form)
+
 =item list => $FLAG
 
+If true the option will hold a list of values. Values can be comma seperated,
+or you can provide the option multiple times and each value will be added to
+the others.
+
 =item bool => $FLAG
+
+If true the option can only have a true or false value, and will not accept an
+argument in the '-option value' form. You can specify a true or false value
+using the '-option=VAL' form. Normally however simply specifying the option
+'-option' will set it to true. If you provide a default value that is true,
+specifying the opton will negate that so that specifying the option on the
+command line turns it off.
 
 =item default => $VALUE
 
 =item default => sub { [ @VALUES ] }
 
+Specify the value that will be used by default when the option is not listed on
+the command line.
+
 =item description => $STRING
+
+Provide a description for the option. This is used in the 'usage' output.
 
 =item trigger => sub { ... }
 
+This gets called when the option is set, even if it is set to the default
+value. The the sub is called as a method on your instance. The method receives
+3 arguments, the name of the option, the value set, and the hashref of
+C<{ option => value } of all options processed so far. The return value is
+ignored.
+
+    trigger => sub {
+        my $self = shift;
+        my ( $name, $value, $opts ) = @_;
+        ...
+    },
+
 =item transform => sub { ... }
+
+This is called whenever the value is set, before any triggers. This sub allows
+you to modify the value before it is assigned. For list params each value is
+passed to the transform sub seperately. This sub is called as a method on the
+instance. This method receives the value as its only argument.
 
 =item check => ...
 
@@ -594,17 +636,33 @@ See L<OPTION "check" PROPERTY>
 
 =head2 OPTION "check" PROPERTY
 
+The "check" option is used to validate inputs to options. You can provide a
+regex, a coderef, or a couple of premade options.
+
 =over 4
 
 =item check => qr/.../
 
+Validate the value(s) against a regex.
+
 =item check => sub { ... }
+
+Validate the value against the sub. The sub is called as a function, not a
+method. The function receives only one argument, the value to be checked. In
+list options each item is checked seperately.
 
 =item check => 'file'
 
+Validate that the value(s) are all valid files. (-f check)
+
 =item check => 'dir'
 
+Validate that the value(s) are all valid directories. (-f check)
+
 =item check => 'number'
+
+Validate that the value(s) are all numerical. (rejects values that contain a
+character matched by qr/\D/).
 
 =back
 
@@ -616,9 +674,25 @@ See L<OPTION "check" PROPERTY>
 
 =item alias => [ "ALIAS_NAME", ... ]
 
+Set aliases for the argument. Any alias can be used to set the argument. Aliases
+can be used for partial matches (short form)
+
 =item description => "The Description"
 
+Provide a description for the argument. This is used in the 'usage' output.
+
 =item handler => sub { ... }
+
+This is the sub that gets called if the argument is provided on the command
+line. The sub is called as a method on your instance. This method is called
+with 2+ argument, the name of the arg, the { option => value } hash, and the
+rest of the arguments from the command line are the remaining arguments.
+
+    handler => sub {
+        my $self = shift;
+        my ( $name, $options, @args ) = @_;
+        ...
+    },
 
 =back
 
@@ -630,25 +704,47 @@ You should rarely if ever need to access these directly.
 
 =item $meta = $meta_class->new( opts => {...}, args => {...} )
 
+Create a new meta object.
+
 =item $class = $meta->class
+
+Get the class for which the meta object was constructed.
 
 =item $args = $meta->args
 
+Get the hashref of { arg => \%config }
+
 =item $opts = $meta->opts
+
+Get the hashref of { opt => \%config }
 
 =item $regex = $meta->valid_arg_params
 
+Get a regex that can be used to validate the options available for args.
+
 =item $regex = $meta->valid_opt_params
+
+Get a regex that can be used to validate the options available for opts.
 
 =item $usage = $meta->usage
 
+Get the usage information.
+
 =item $result = $meta->process_cli( $INSTANCE, @ARGS )
+
+Process the command line arguments on $INSTANCE.
 
 =item $meta->describe( $TYPE, $NAME, $DESCRIPTION )
 
+Add a description to an argument or option.
+
 =item $meta->add_arg( $NAME => %PROPERTIES )
 
+Add an argument.
+
 =item $meta->add_opt( $NAME => %PROPERTIES )
+
+Add an option.
 
 =back
 
