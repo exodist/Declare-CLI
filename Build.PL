@@ -14,6 +14,7 @@ my $build = Module::Build->new(
     build_requires => {
         'Fennec'            => '2.004',
         'Fennec::Declare'   => '1.001',
+        'Parallel::Runner'  => 0,
     },
     meta_merge => {
         resources => {
