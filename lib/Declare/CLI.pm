@@ -510,29 +510,29 @@ Your/Prog.pl
 
     arg filter => sub {
         my $self = shift;
-        my ( $opts, $args ) = @_;
+        my ( $cmd, $opts, @args ) = @_;
         my $types = { map { $_ => 1 } @{ $opts->{types}} };
         return grep {
-            m/\..({3,4})$/;
+            m/\.(.{3,4})$/;
             $1 && $types->{$1} ? 1 : 0;
-        } @$args;
+        } @args;
     };
 
     # Descriptions are displayed in usage.
     describe_arg filter => "Filters args to only show those specified in types";
 
     arg sort => (
-        describe => "sort args",
+        description => "sort args",
         handler => sub {
             my $self = shift;
-            my ( $opts, $args ) = @_;
-            return sort @$args;
-        };
-    };
+            my ( $cmd, $opts, @args ) = @_;
+            return sort @args;
+        },
+    );
 
     arg help => sub {
         my $self = shift;
-        my ( $opts, $args ) = @_;
+        my ( $cmd, $opts, @args ) = @_;
 
         return (
             "Usage: $0 [OPTS] [COMMAND] [FILES]\n",
