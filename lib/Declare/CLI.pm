@@ -12,7 +12,7 @@ use Exporter::Declare qw{
     default_export
 };
 
-our $VERSION = 0.008;
+our $VERSION = 0.009;
 
 gen_default_export CLI_META => sub {
     my ( $class, $caller ) = @_;

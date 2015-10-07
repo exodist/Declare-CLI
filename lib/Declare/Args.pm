@@ -2,7 +2,7 @@ package Declare::Args;
 use strict;
 use warnings;
 
-our $VERSION = "0.005";
+our $VERSION = "0.009";
 
 use Carp qw/croak/;
 
